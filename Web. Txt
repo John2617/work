@@ -1,0 +1,250 @@
+Here’s the complete folder structure for your Chef & Kitchen website, including all PHP files and the database file.
+
+
+---
+
+📂 Folder Structure
+
+/chef_kitchen
+│── /uploads               (Stores recipe images)
+│── db_connect.php         (Database connection)
+│── add_recipe.php         (Chef adds recipes)
+│── index.php              (Users view recipes)
+│── like.php               (Handles likes)
+│── save.php               (Handles saves)
+│── comment.php            (Handles comments)
+│── database.sql           (Database structure)
+
+
+---
+
+📂 db_connect.php (Database Connection)
+
+<?php
+$host = "localhost";
+$user = "root";
+$pass = "";
+$dbname = "chef_kitchen";
+
+$conn = new mysqli($host, $user, $pass, $dbname);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+?>
+
+
+---
+
+📂 database.sql (Create Database & Tables)
+
+CREATE DATABASE chef_kitchen;
+USE chef_kitchen;
+
+CREATE TABLE recipes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    image VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE likes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    recipe_id INT NOT NULL,
+    user_ip VARCHAR(255) NOT NULL,
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id)
+);
+
+CREATE TABLE saves (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    recipe_id INT NOT NULL,
+    user_ip VARCHAR(255) NOT NULL,
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id)
+);
+
+CREATE TABLE comments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    recipe_id INT NOT NULL,
+    user_ip VARCHAR(255) NOT NULL,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id)
+);
+
+
+---
+
+📂 add_recipe.php (Chef Adds Recipes)
+
+<?php
+include 'db_connect.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $title = $_POST['title'];
+    $description = $_POST['description'];
+    
+    $image = $_FILES['image']['name'];
+    $target = "uploads/" . basename($image);
+    
+    if (move_uploaded_file($_FILES['image']['tmp_name'], $target)) {
+        $sql = "INSERT INTO recipes (title, description, image) VALUES ('$title', '$description', '$image')";
+        $conn->query($sql);
+        echo "Recipe added successfully!";
+    } else {
+        echo "Failed to upload image!";
+    }
+}
+?>
+
+<form method="POST" enctype="multipart/form-data">
+    <input type="text" name="title" placeholder="Recipe Title" required><br>
+    <textarea name="description" placeholder="Recipe Description" required></textarea><br>
+    <input type="file" name="image" required><br>
+    <button type="submit">Add Recipe</button>
+</form>
+
+
+---
+
+📂 index.php (Users View Recipes)
+
+<?php
+include 'db_connect.php';
+
+$result = $conn->query("SELECT * FROM recipes ORDER BY created_at DESC");
+
+while ($row = $result->fetch_assoc()) {
+    $recipe_id = $row['id'];
+
+    $likes = $conn->query("SELECT COUNT(*) AS count FROM likes WHERE recipe_id = $recipe_id")->fetch_assoc()['count'];
+    $saves = $conn->query("SELECT COUNT(*) AS count FROM saves WHERE recipe_id = $recipe_id")->fetch_assoc()['count'];
+    $comments = $conn->query("SELECT COUNT(*) AS count FROM comments WHERE recipe_id = $recipe_id")->fetch_assoc()['count'];
+
+    echo "<div>";
+    echo "<h2>" . $row['title'] . "</h2>";
+    echo "<img src='uploads/" . $row['image'] . "' width='300px'><br>";
+    echo "<p>" . $row['description'] . "</p>";
+
+    echo "<button onclick='likeRecipe($recipe_id)'>Like ($likes)</button>";
+    echo "<button onclick='saveRecipe($recipe_id)'>Save ($saves)</button>";
+
+    echo "<form onsubmit='addComment(event, $recipe_id)'>
+            <input type='text' id='comment_$recipe_id' placeholder='Write a comment...' required>
+            <button type='submit'>Comment ($comments)</button>
+          </form>";
+
+    $comment_result = $conn->query("SELECT * FROM comments WHERE recipe_id = $recipe_id ORDER BY created_at DESC");
+    while ($comment_row = $comment_result->fetch_assoc()) {
+        echo "<p>" . $comment_row['comment'] . "</p>";
+    }
+
+    echo "</div><hr>";
+}
+?>
+
+<script>
+function likeRecipe(recipeId) {
+    fetch('like.php', { method: 'POST', body: new URLSearchParams({ recipe_id: recipeId }) })
+        .then(response => response.text())
+        .then(data => location.reload());
+}
+
+function saveRecipe(recipeId) {
+    fetch('save.php', { method: 'POST', body: new URLSearchParams({ recipe_id: recipeId }) })
+        .then(response => response.text())
+        .then(data => location.reload());
+}
+
+function addComment(event, recipeId) {
+    event.preventDefault();
+    const comment = document.getElementById('comment_' + recipeId).value;
+    
+    fetch('comment.php', { 
+        method: 'POST', 
+        body: new URLSearchParams({ recipe_id: recipeId, comment: comment }) 
+    }).then(response => response.text()).then(data => location.reload());
+}
+</script>
+
+
+---
+
+📂 like.php (Handle Likes)
+
+<?php
+include 'db_connect.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $recipe_id = $_POST['recipe_id'];
+    $user_ip = $_SERVER['REMOTE_ADDR'];
+
+    $check = $conn->query("SELECT * FROM likes WHERE recipe_id = $recipe_id AND user_ip = '$user_ip'");
+    if ($check->num_rows == 0) {
+        $conn->query("INSERT INTO likes (recipe_id, user_ip) VALUES ($recipe_id, '$user_ip')");
+    }
+}
+?>
+
+
+---
+
+📂 save.php (Handle Saves)
+
+<?php
+include 'db_connect.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $recipe_id = $_POST['recipe_id'];
+    $user_ip = $_SERVER['REMOTE_ADDR'];
+
+    $check = $conn->query("SELECT * FROM saves WHERE recipe_id = $recipe_id AND user_ip = '$user_ip'");
+    if ($check->num_rows == 0) {
+        $conn->query("INSERT INTO saves (recipe_id, user_ip) VALUES ($recipe_id, '$user_ip')");
+    }
+}
+?>
+
+
+---
+
+📂 comment.php (Handle Comments)
+
+<?php
+include 'db_connect.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $recipe_id = $_POST['recipe_id'];
+    $user_ip = $_SERVER['REMOTE_ADDR'];
+    $comment = $_POST['comment'];
+
+    $conn->query("INSERT INTO comments (recipe_id, user_ip, comment) VALUES ($recipe_id, '$user_ip', '$comment')");
+}
+?>
+
+
+---
+
+🚀 Features Implemented
+
+✅ Chefs can add recipes with images
+✅ Users can like, save, and comment
+✅ Live count of likes, saves, and comments
+✅ Basic security to prevent duplicate likes/saves from the same user
+
+
+---
+
+Next Steps (Optional)
+
+User authentication (Login/Register)
+
+Admin dashboard for managing recipes & comments
+
+Pagination for recipes & comments
+
+Image compression for faster loading
+
+
+Would you like user authentication or admin features?
+
