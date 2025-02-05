@@ -1,0 +1,23 @@
+Project Overview:
+Cookify is a web-based application designed for culinary enthusiasts,
+providing a platform where chefs and users can interact. The project focuses on
+multi-authentication, allowing both chefs and users to have unique functionalities.
+Features and Functionalities:
+1.Multi-Authentication System:
+Users can sign up as either a Chef or a User.
+Secure authentication system to differentiate access levels.
+2.Chef Features:
+Ability to add recipes including:
+Recipe Image
+Ingredients List
+Step-by-step cooking instructions
+Track the number of likes received on each recipe.
+3.User Features:
+Follow chefs to receive updates on their new recipes.
+Like recipes to show appreciation and engagement.
+Save recipes for future reference.
+Search module to find recipes efficiently using various filters.
+Objective:
+The goal of this project is to develop an interactive recipe-sharing platform
+that enhances the culinary experience by fostering engagement between chefs and
+food enthusiasts.
